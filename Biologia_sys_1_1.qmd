@@ -113,7 +113,7 @@ s2_nullcline <- with(as.list(parameters), {
 ```{r}
 plot(out$s1, out$s2, type = "l", xlab = "S1", ylab = "S2", main = " Portret fazowy", col="magenta")
 lines(s1_nullcline, s2_vals, col = "red", lty = 2, lwd = 2)
-lines(s1_vals_for_nullcline, s2_nullcline, col = "blue", lty = 2, lwd = 2)
+lines(s1_vals, s2_nullcline, col = "blue", lty = 2, lwd = 2)
 ```
 
 ## d. Symulacje dla 3 różnych stężeń
