@@ -1,0 +1,188 @@
+---
+title: "Biologia Systemów 1 2"
+author: "Zofia Sikorska"
+format: html
+editor: visual
+---
+
+```{r}
+library("deSolve")
+```
+
+# Zadanie 2
+
+## a. Równania s1 i s2
+
+Izokliny zerowe
+
+$$
+s1 = \frac{k1}{[1+(\frac{s_2}{K})^n]k3}\\
+s2 = \frac{k2}{[1+(\frac{s_2}{K})^n]k4}
+$$
+
+```{r}
+WzajInh <- function(t, y, parameters){    
+  k1 <- parameters[1]   
+  k2 <- parameters[2]   
+  k3 <- parameters[3]   
+  k4 <- parameters[4]   
+  n1 <- parameters[5]   
+  n2 <-parameters[6]   
+  K <- parameters[7]    
+  
+  s1 <- y[1]   
+  s2 <- y[2]    
+  
+  v1 <- k1/(1+(s2/K)^n1)   
+  v2 <- k2/(1+(s1/K)^n2)   
+  v3 <- k3*s1   
+  v4 <- k4*s2    
+  
+  dS1 <- v1 - v3    
+  dS2 <- v2 - v4    
+  
+  dy <- c(dS1, dS2)   
+  list(dy)  
+}
+```
+
+## b. Założenia 
+
+### Symetryczne n1 = n2
+
+Chamowanie będzie symetryczne, w stanie stacjonarnym s1 = s2, układ powinien dązyć do równowagi
+
+### Asymetryczne n1\>n2
+
+oznacza to, że jedno s będzie mocniej chamować drugie, będzie to zależało od stosunku s do K
+
+## c. Implementacja modelu
+
+```{r}
+parameters_sym <- c(k1 = 20, k2 = 20, k3 = 5, k4 = 5, n1 = 4, n2 =4, K=1)  
+parameters_asym <- c(k1 = 20, k2 = 20, k3 = 5, k4 = 5, n1 = 4, n2 =1, K=1)  
+
+inits1 <- c(s1 = 0, s2 = 0) 
+inits2 <- c(s1 = 5, s2 = 0) 
+inits3 <- c(s1 = 0, s2 = 5)   
+
+times <- seq(0, 8, by = 0.1)  
+
+sim1_sym <- as.data.frame(ode(y = inits1, times = times, func = WzajInh, parms = parameters_sym)) 
+sim2_sym <- as.data.frame(ode(y = inits2, times = times, func = WzajInh, parms = parameters_sym)) 
+sim3_sym <- as.data.frame(ode(y = inits3, times = times, func = WzajInh, parms = parameters_sym))  
+
+sim1_asym <- as.data.frame(ode(y = inits1, times = times, func = WzajInh, parms = parameters_asym)) 
+sim2_asym <- as.data.frame(ode(y = inits2, times = times, func = WzajInh, parms = parameters_asym)) 
+sim3_asym <- as.data.frame(ode(y = inits3, times = times, func = WzajInh, parms = parameters_asym))   
+
+
+```
+
+## d.1. Wykresy i portrety fazowe symetryczne
+
+```{r}
+
+plot(sim1_sym$time, sim1_sym$s1, 
+  type = "l",  col = "red", 
+  xlab = "Czas", ylab = "Stężenie", 
+  lwd = 2, ylim = c(0, 5),       
+  main = "Symetryczny (n1=n2=4)") 
+lines(sim1_sym$time, sim1_sym$s2, 
+  col = "blue", lwd = 2, lty = 2) 
+lines(sim2_sym$time, sim2_sym$s1, 
+  col = "darkgreen", lwd = 2) 
+lines(sim2_sym$time, sim2_sym$s2, 
+  col = "purple", lwd = 2, lty = 2) 
+lines(sim3_sym$time, sim3_sym$s1, 
+  col = "orange", lwd = 2) 
+lines( sim3_sym$time,  sim3_sym$s2, 
+  col = "brown", lwd = 2, lty = 2)  
+legend("topright", legend = c("S1 (0,0)", "S2 (0,0)", "S1 (5,0)", "S2 (5,0)", "S1 (0,5)", "S2 (0,5)"),col = c("red", "blue", "darkgreen", "purple", "orange", "brown"),         
+  lty = c(1, 2, 1, 2, 1, 2), lwd = 2, cex = 0.7) 
+```
+
+```{r}
+s2_vals <- seq(0, 8, length.out = 100)
+
+s1_nullcline <- with(as.list(parameters_sym), {
+  k1 / ((k3) * (1 + (s2_vals/K)^n1))
+})
+
+s1_vals <- seq(0, 8, length.out = 100)
+s2_nullcline <- with(as.list(parameters_sym), {
+  k2 / ((k4) * (1 + (s2_vals/K)^n2))
+})
+```
+
+```{r}
+plot(sim1_sym$s1, sim1_sym$s2, 
+     type = "l", col = "red",       
+     xlab = "S1", ylab = "S2", 
+     lwd = 2, xlim = c(0, 5), ylim = c(0, 6), 
+     main = "Portret fazowy (symetryczny)") 
+lines(sim2_sym$s1, sim2_sym$s2, 
+      col = "darkgreen", lwd = 2) 
+lines(sim3_sym$s1, sim3_sym$s2, 
+      col = "orange", lwd = 2)
+lines(s1_nullcline, s2_vals, col = "grey", lty = 2, lwd = 2)
+lines(s1_vals, s2_nullcline, col = "skyblue", lty = 2, lwd = 2)
+legend("topright", 
+       legend = c("(0,0)", "(5,0)", "(0,5)"),     
+       col = c("red", "darkgreen", "orange"),
+       lty = c(1, 1, 1, 2, 3), lwd = 2)
+```
+
+## d.2. Wykresy i portrety fazowe asymetryczne
+
+```{r}
+plot(sim1_asym$time, sim1_asym$s1, 
+     type = "l", col = "red",       xlab = "Czas",
+     ylab = "Stężenie", lwd = 2, ylim = c(0, 6),       
+     main = "Asymetryczny (n1=4, n2=1)") 
+lines(sim1_asym$time, sim1_asym$s2, 
+      col = "blue", lwd = 2, lty = 2) 
+lines(sim2_asym$time, sim2_asym$s1, 
+      col = "darkgreen", lwd = 2) 
+lines(sim2_asym$time, sim2_asym$s2, 
+      col = "purple", lwd = 2, lty = 2) 
+lines(sim3_asym$time, sim3_asym$s1, 
+      col = "orange", lwd = 2) 
+lines(sim3_asym$time, sim3_asym$s2, 
+      col = "brown", lwd = 2, lty = 2)  
+legend("topright", 
+       legend = c("S1 (0,0)", "S2 (0,0)", "S1 (5,0)", "S2 (5,0)", "S1 (0,5)", "S2 (0,5)"),
+       col = c("red", "blue", "darkgreen", "purple", "orange", "brown"),         
+       lty = c(1, 2, 1, 2, 1, 2), lwd = 2, cex = 0.7) 
+```
+
+```{r}
+s2_vals_a <- seq(0, 8, length.out = 100)
+
+s1_nullcline_a <- with(as.list(parameters_asym), {
+  k1 / ((k3) * (1 + (s2_vals_a/K)^n1))
+})
+
+s1_vals_a <- seq(0, 8, length.out = 100)
+s2_nullcline_a <- with(as.list(parameters_asym), {
+  k2 / ((k4) * (1 + (s1_vals_a/K)^n2))
+})
+```
+
+```{r}
+plot(sim1_asym$s1, sim1_asym$s2, 
+     type = "l", col = "red",       
+     xlab = "S1", ylab = "S2", 
+     lwd = 2, xlim = c(0, 5), ylim = c(0, 5),      
+     main = "Portret fazowy (asymetryczny)") 
+lines(sim2_asym$s1, sim2_asym$s2, 
+      col = "darkgreen", lwd = 2) 
+lines(sim3_asym$s1, sim3_asym$s2, 
+      col = "orange", lwd = 2) 
+lines(s1_nullcline_a, s2_vals_a, col = "grey", lty = 2, lwd = 2)
+lines(s1_vals_a, s2_nullcline_a, col = "skyblue", lty = 2, lwd = 2)
+legend("topright", 
+       legend = c("(0,0)", "(5,0)", "(0,5)"),        
+       col = c("red", "darkgreen", "orange"),         
+       lty = c(1, 1, 1, 2, 3), lwd = 2)
+```
