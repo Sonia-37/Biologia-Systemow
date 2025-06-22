@@ -1,0 +1,89 @@
+---
+title: "Biologia Systemów 1 3"
+author: "Zofia Sikorska"
+format: html
+editor: visual
+---
+
+```{r}
+library("deSolve")
+library("phaseR")
+```
+
+# Zadanie 3 (chemostat)
+
+## I. Uproszczenie równań
+
+$$ T = \frac{V}{Q} \\ \tilde{t} = \frac{t}{T} \Rightarrow t=\tilde{t}T\\ \frac{d }{dt}= \frac{1}{T}\frac{d }{dt}\\c =K\tilde{c}\\ \gamma=r_{max}T\\ \tilde{\rho}=\frac{\rho v}{K}\\ \\ Równanie 1:\\ \frac{d(\rho V) }{dt} = r\rho V - Qp \Rightarrow V\frac{d \rho }{dt} = \rho (rV - Q)\\  V\frac{d \rho }{dt} = \rho (r_{max}\frac{\tilde{c}}{1+\tilde{c}}V - Q)\\  \frac{1}{T}\frac{d \rho }{dt} = \rho (r_{max}\frac{\tilde{c}}{1+\tilde{c}} - \frac{Q}{V})\\ \frac{d \rho }{dt} = \rho (\gamma\frac{\tilde{c}}{1+\tilde{c}} - 1)\\ \\ Równanie 2:\\\frac{d (cV)}{dt} = Qc_{in}-Qc - vr\rho V\\\frac{d c}{dt} =\frac{ Qc_{in}}{V}-\frac{ Qc}{V} - vr\rho \\K\frac{1}{T}\frac{d \tilde{c}}{dt} =\frac{ Qc_{in}}{V}-\frac{ QK\tilde{c}}{V} - vr\rho \\\frac{d \tilde{c}}{dt} =\frac{ c_{in}}{K}-\tilde{c} - \frac{T}{K}vr\rho \\\left( \frac{T}{K}vrp= \frac{Tr_{max}\tilde{c}}{1+\tilde{c}}\frac{\rho v}{K}=\gamma\frac{\tilde{c}}{1+\tilde{c}}\tilde{\rho}\right)\\\frac{d \tilde{c}}{dt} =\tilde{c_{in}}-\tilde{c} -\gamma\frac{\tilde{c}}{1+\tilde{c}}\tilde{\rho} \\ $$
+
+## II. Izokliny zerowe
+
+$$ \frac{d \tilde{\rho}}{dt}=\rho(\gamma \frac{\tilde{c}}{1+\tilde{c}}-1)=0\\\rho = 0 \vee \gamma\frac{\tilde{c}}{1+\tilde{c}}-1 = 0\\\gamma\tilde{c}=1+{\tilde{c}}\\\tilde{c}=\frac{1}{\gamma-1}, \gamma>1\\\\\frac{d \tilde{c}}{dt} = \tilde{c_{in}}-\tilde{c} - \gamma\frac{\tilde{c}}{1+\tilde{c}}\tilde{\rho}=0\\\tilde{\rho}= \frac{(\tilde{c_{in}}-\tilde{c})(1+\tilde{c})}{\gamma\tilde{c}}\\\\1) \tilde{\rho}=0, \tilde{c}=\tilde{c_{in}}\\\frac{d \tilde{\rho}}{dt}=c_{in}-\tilde{c} - (\gamma \frac{\tilde{c}}{1+\tilde{c}}0)=0\\\tilde{c_{in}}=\tilde{c}\\(\tilde{c},\tilde{\rho})=(\tilde{c_{in}},0), \tilde{\rho}=0, \tilde{c_{in}}=\tilde{c}\ge 0\\\\2) \tilde{c}=\frac{1}{\gamma-1}, \tilde{\rho}=\frac{(\tilde{c_{in}}-\tilde{c})(1+\tilde{c})}{\gamma\tilde{c}}\\\tilde{\rho}=\frac{(\tilde{c_{in}}-\frac{1}{\gamma-1})(1+\frac{1}{\gamma-1})}{\gamma\frac{1}{\gamma-1}}=\tilde{c_{in}}-\frac{1}{\gamma-1}\\(\tilde{c},\tilde{\rho})=(\frac{1}{\gamma-1}, \tilde{c_{in}-\frac{1}{\gamma-1}}), \gamma>1, \tilde{c_{in}}\ge \frac{1}{\gamma-1} $$
+
+## III. Portret fazowy
+
+```{r}
+chemostat <- function(t, y, parameters){    
+  c0 <- parameters[1]   
+  gamma <- parameters[2]    
+  
+  c <- y[1]   
+  rhos <- y[2]    
+  dc <- c0 - c - gamma*(c/(1+c))*rhos    
+  drho <- rhos*(gamma*(c/(1+c))-1)    
+  dy <- c(dc, drho)   
+  list(dy)  
+}
+```
+
+```{r}
+parameters_chem_1 <- c(c0=3,gamma = 2) 
+parameters_chem_2 <- c(c0=3, gamma=1.25) 
+
+inits_chem<-c(c=4, rhos=4) 
+
+times <- seq(0,50, by=0.1)  
+
+chem_1 <- as.data.frame(ode(y = inits_chem, times = times, func = chemostat, parms = parameters_chem_1)) 
+chem_2 <- as.data.frame(ode(y = inits_chem, times = times, func = chemostat, parms = parameters_chem_2))
+```
+
+```{r}
+plot(chem_1$c, chem_1$rho,      
+     type = "l", col = "red", lwd = 2,      
+     xlab = "Stężenie (c)", 
+     ylab = "Gęstość bakterii (p)",
+     main = "Portrety fazowe chemostatu",      
+     xlim = c(0, 4), ylim = c(0, 5)) 
+lines(chem_2$c, chem_2$rho, 
+      col = "blue", lwd = 2, type = "l") 
+legend("topright", 
+       legend = c("gamma = 2", "gamma = 1.25"),        
+       col = c("red", "blue"),
+       lwd = 2)
+```
+
+Wykonałam wiele wykresów zmieniając wartości c oraz $\rho$, gdzie c odpowiadało początkowi wykresów na osi x, a rho początkowi wykresów na osi y. obie linie niebieska i czerwona dążyły zawsze do tych samych punktow: czerowny(1,2), niebieski(3,0).
+
+W przypadku czerwonej lini($\gamma=2$) tempo wzrostu bakterii przewyższa tempo ich wypłukiwania, więc system stabilizuje sie przy stężeniu c=1 i gęstości bakterii $\rho=2$.
+
+Przy niebieskiej linii($\gamma=1.25$) mimo, że $\gamma > 1$ to stężenie wejściowe jest niewystarczające do utrzymania populacji (na pewno w okolicach c0=4 to już się zmienia), dlatego bakteria zawsze wymiera, a stężenie pokarmu dąży do wartości wejściowej. $\rightarrow \tilde{c_{in}} \ge \frac{1}{1.25-1}\rightarrow \tilde{c_{in}} \ge 4$
+
+```{r}
+
+flowField(chemostat, xlim = c(0, 6), ylim = c(0, 8), 
+          parameters = parameters_chem_1, xlab = "c", ylab = "p",
+          main = "Portret fazowy z phaseR", add = FALSE)
+
+nullclines(chemostat, parameters_chem_1, xlim = c(0, 6), ylim = c(0, 8), 
+           col = c("green", "purple"), lty = 2, points = 200)
+```
+
+```{r}
+flowField(chemostat, xlim = c(0, 6), ylim = c(0, 8), 
+          parameters = parameters_chem_2, xlab = "c", ylab = "p",
+          main = "Portret fazowy z phaseR", add = FALSE)
+
+nullclines(chemostat, parameters_chem_2, xlim = c(0, 6), ylim = c(0, 8), 
+           col = c("green", "purple"), lty = 2, points = 200)
+```
