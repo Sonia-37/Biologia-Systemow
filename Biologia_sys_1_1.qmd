@@ -1,0 +1,174 @@
+---
+title: "Biologia Systemów 1"
+author: "Zofia Sikorska"
+format: html
+embed-resources: true     
+self-contained-math: true
+editor: visual
+---
+
+# Zadanie 1
+
+```{r}
+library("deSolve")
+```
+
+### a. Równania różniczkowe opisujące zmiany stężeń:
+
+Równania:\
+1) dS1 \<- v1 - v3 - v5\
+2) dS2 \<- v2 + v5 - v4
+
+Izokliny:
+
+$$
+s_1=\frac{1}{[1+(\frac{s_{2}}{K})^n](k3+k5)}\\
+s_2=\frac{k2+ k5s_1}{k4}
+$$
+
+## b. Implementacja modelu
+
+```{r}
+AlloInh <- function(t, y, parameters){
+
+  k1 <- parameters[1]
+  k2 <- parameters[2]
+  k3 <- parameters[3]
+  k4 <- parameters[4]
+  k5 <- parameters[5]
+  n <- parameters[6]
+  K <-parameters[7]
+
+  s1 <- y[1]
+  s2 <- y[2]
+
+  v1 <- k1/(1+(s2/K)^n)
+  v2 <- k2
+  v3 <- k3*s1
+  v4 <- k4*s2
+  v5 <- k5*s1
+
+  dS1 <- v1 - v3 - v5
+  dS2 <- v2 + v5 - v4
+
+  dy <- c(dS1, dS2)
+  list(dy)
+
+}
+```
+
+### Jednostki:
+
+brak: n\
+1/czas: k2, k3, k4, k5\
+stężenie/czas: k1\
+stężenie K
+
+```{r}
+parameters <- c(k1 = 20, k2 = 5, k3 = 5, k4 = 5, k5 = 2, n = 4, K=1)
+inits <- c(s1 = 0, s2 = 0)
+times <- seq(0, 3, by = 0.01)
+out <- as.data.frame(lsoda(inits, times, AlloInh, parameters))
+```
+
+```{r}
+plot(out$time, out$s1,
+     t="l",
+     lwd=2,
+     main = "Zmiany stężeń w czasie",
+     col="skyblue",
+     xlab="Czas",
+     ylab="Stężenie",
+     ylim=c(0,2),
+     xlim=c(0,3)
+     )
+
+legend(1, 2, legend=c("s1", "s2"),
+       col=c("skyblue", "darkred"), lty=c(1,1),
+       text.font=8)
+
+lines(out$time, out$s2,
+     lwd=2,
+     col="darkred"
+     )
+```
+
+## c. Portret fazowy
+
+### Wyliczenie izoklin zerowych
+
+```{r}
+s2_vals <- seq(0, 3, length.out = 100)
+
+s1_nullcline <- with(as.list(parameters), {
+  k1 / ((k3 + k5) * (1 + (s2_vals/K)^n))
+})
+
+s1_vals <- seq(0, 4, length.out = 100)
+s2_nullcline <- with(as.list(parameters), {
+  (k2 + k5 * s1_vals) / k4
+})
+```
+
+```{r}
+plot(out$s1, out$s2, type = "l", xlab = "S1", ylab = "S2", main = " Portret fazowy", col="magenta")
+lines(s1_nullcline, s2_vals, col = "red", lty = 2, lwd = 2)
+lines(s1_vals_for_nullcline, s2_nullcline, col = "blue", lty = 2, lwd = 2)
+```
+
+## d. Symulacje dla 3 różnych stężeń
+
+```{r}
+inits1 <- c(s1 = 0, s2 = 0)
+inits2 <- c(s1 = 5, s2 = 0)
+inits3 <- c(s1 = 0, s2 = 5)
+
+
+
+times <- seq(0, 3, by = 0.01)
+
+simulation1 <- as.data.frame(lsoda(inits1, times, AlloInh, parameters))
+simulation2 <- as.data.frame(lsoda(inits2, times, AlloInh, parameters))
+simulation3 <- as.data.frame(lsoda(inits3, times, AlloInh, parameters))
+
+
+```
+
+```{r}
+plot(simulation1$time, simulation1$s1, type="l", col="magenta", xlab="Czas", ylab="Stężenie",lwd=1.5,ylim=c(0,2), main = "S1(t) i S2(t) dla różnych warunków początkowych")
+lines(simulation1$time, simulation1$s2, type="l", col="magenta",lwd=1.5,lty=2)
+
+lines(simulation2$time, simulation2$s1, type="l", col="blue",lwd=1.5)
+lines(simulation2$time, simulation2$s2, type="l", col="blue",lwd=1.5,lty=2)
+
+lines(simulation3$time, simulation3$s1, type="l", col="darkgreen",lwd=1.5)
+lines(simulation3$time, simulation3$s2, type="l", col="darkgreen",lwd=1.5,lty=2)
+```
+
+### Portret fazowy
+
+```{r}
+plot(simulation1$s1, simulation1$s2, type="l", col="magenta", xlab="time", ylab="concentration",lwd=1.5,ylim=c(0,2), main = "S1(t) i S2(t) dla różnych warunków początkowych")
+
+lines(simulation2$s1, simulation2$s2, type="l", col="blue",lwd=1.5)
+
+lines(simulation3$s1, simulation3$s2, type="l", col="darkgreen",lwd=1.5)
+
+```
+
+## e. Portret fazowy przy użyciu phaseR
+
+```{r}
+library(phaseR)
+
+```
+
+```{r}
+
+flowField(AlloInh, xlim = c(0, 6), ylim = c(0, 8), 
+          parameters = parameters, xlab = "s1", ylab = "s2",
+          main = "Portret fazowy z phaseR", add = FALSE)
+
+nullclines(AlloInh, parameters, xlim = c(0, 6), ylim = c(0, 8), 
+           col = c("green", "purple"), lty = 2, points = 200)
+```
