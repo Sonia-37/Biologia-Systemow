@@ -1,0 +1,362 @@
+---
+title: "Biologia Systemów BIG"
+author: "Zofia Sikorska"
+format: html
+editor: visual
+---
+
+# Model minimalny
+
+```{r}
+library("deSolve")
+library("phaseR")
+
+```
+
+## 1. Znalezienie stanów stacjonarnych
+
+$$
+Równanie\ 1:\\
+0.5-IG = 0\\
+I = \frac{0.5}{G}\\
+Równanie\ 2:\\
+\frac{G^2}{1+G^2} - I = 0\\
+I = \frac{G^2}{1+G^2}\\
+Razem:\\
+\frac{0.5}{G} = \frac{G^2}{1+G^2}\\
+G^3 - 0.5G^2 - 0.5 = 0\\
+G = 1\ \wedge I = 0.5
+$$
+
+## 2. Symulacja
+
+```{r}
+fG <- function(G) G^2 / (1 + G^2)
+m_t <- function(t) 0.5 + exp(-(t - 5)^2)
+
+min_mod <- function(t, y, parameters){
+  s <- parameters[1]
+  q <- parameters[2]
+  gamma <- parameters[3]
+  B <- parameters[4]
+  
+  G <- y[1]
+  I <- y[2]
+  
+  dG <- m_t(t) - s*I*G
+  dI <- q*B*fG(G) - gamma*I
+  
+  list(c(dG, dI))
+}
+```
+
+```{r}
+parameters <- c(s=1, q=1, gamma =1, B=1)
+
+inits <- c(G = 1, I = 0.5)
+times <- seq(0, 20, by=0.01)
+
+healthy <- as.data.frame(ode(y=inits,times = times, func = min_mod, parms = parameters))
+```
+
+```{r}
+plot(healthy$time,healthy$G,
+     type = "l", col = "blue", 
+     ylim = c(0, max(healthy$G, healthy$I)),      
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Model Minimalny") 
+lines(healthy$time, healthy$I, col = "red") 
+legend("topright", 
+       legend = c("G", "I"), 
+       col = c("blue", "red"), lty = 1)
+```
+
+## 3. Zasymulowanie insulinooporności
+
+```{r}
+parameters_2 <- c(s=0.1, q=1, gamma =1, B=1)
+ins <- as.data.frame(ode(y=inits,times = times, func = min_mod, parms = parameters_2))
+```
+
+```{r}
+plot(healthy$time,healthy$G,
+     type = "l", col = "blue", 
+     ylim = c(0, max(healthy$G, healthy$I, ins$G, ins$I)),      
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Model Minimalny") 
+lines(healthy$time, healthy$I, col = "blue", lty = 2)
+lines(ins$time, ins$G, col = "red", lty = 1)
+lines(ins$time, ins$I, col = "red", lty = 2)
+legend("topright", 
+       legend = c("G, s=1", "I, s=1", "G, s=0.1", "I, s=0.1"), 
+       col = c("blue", "blue", "red", "red"), lty = c(1,2,1,2))
+```
+
+Gdy s = 1, glukoza szybko wzrasta i wraca do normy, a insulina lekko rośnie i to wystarczy do kontroli poziomu glukozy
+
+Gdy s=0.1, glukoza rośnie wysoko i wolniej będzie wracać do normy, a insulina wzrasta mocniej i dłużej się utrzymuje
+
+## 4. Portrety fazowe
+
+```{r}
+
+xlim <- c(0, 4)
+ylim <- c(0, 2)
+
+
+flowField(min_mod, xlim = xlim, ylim = ylim, parameters = parameters, 
+          points = 21, add = FALSE, xlab = "G", ylab = "I", main = "s = 1")
+
+nullclines(
+  deriv = min_mod,
+  xlim = xlim,
+  ylim = ylim,
+  parameters = parameters,
+  col = c("red", "blue"),
+  add = TRUE,
+  state.names = c("G", "I")
+)
+initial_points <- list(c(1, 0.5), c(0.5, 1), c(2, 0.2), c(1.5, 1.5), c(3, 0.3))
+times_traj <- seq(0, 50, by = 0.1)
+colors <- rainbow(length(initial_points))
+ 
+for (i in seq_along(initial_points)) {
+  init <- initial_points[[i]]
+  init_named <- setNames(init, c("G", "I"))
+
+  traj <- ode(
+    y = init_named,
+    times = times_traj,
+    func = min_mod,
+    parms = parameters
+  )
+  
+  traj_df <- as.data.frame(traj)
+  
+  col_i <- colors[i]
+     
+  lines(traj_df$G, traj_df$I, col = col_i, lwd = 2)
+  points(init_named["G"], init_named["I"], pch = 16, col = col_i)
+}
+```
+
+```{r}
+xlim2 <- c(0, 8)
+ylim2 <- c(0, 2)
+
+flowField(min_mod, xlim = xlim2, ylim = ylim2, parameters = parameters_2, 
+          points = 21, add = FALSE, xlab = "G", ylab = "I", main = "s = 0.1")
+
+nullclines(
+  deriv = min_mod,
+  xlim = xlim2,
+  ylim = ylim2,
+  parameters = parameters_2,
+  col = c("red", "blue"),
+  add = TRUE,
+  state.names = c("G", "I")
+)
+
+initial_points <- list(c(1, 0.5), c(0.5, 1), c(2, 0.2), c(1.5, 1.5), c(3, 0.3))
+times_traj <- seq(0, 50, by = 0.1)
+colors <- rainbow(length(initial_points))
+ 
+for (i in seq_along(initial_points)) {
+  init <- initial_points[[i]]
+  init_named <- setNames(init, c("G", "I"))
+
+  traj <- ode(
+    y = init_named,
+    times = times_traj,
+    func = min_mod,
+    parms = parameters_2
+  )
+  
+  traj_df <- as.data.frame(traj)
+
+  col_i <- colors[i]
+
+  lines(traj_df$G, traj_df$I, col = col_i, lwd = 2)
+  points(init_named["G"], init_named["I"], pch = 16, col = col_i)
+}
+
+```
+
+## 5. Komentarz
+
+Dla s =1 trajektorie szybko zbliżają się do punktu stacjonarnego, nuklina G (czerwona) leży niżej co oznacza że jest efektywnie usuwana z krwi
+
+Dla s=0.1 trajektorie są bardziej spłaszczone i wolniej zbliżają się do punktu równowagi (który jest przesunięty w prawo). Widzimy też zwiększony poziom glukozy, co oznacza niższą wrażliwość na insulinę
+
+# Model BIG
+
+```{r}
+BIG1 <- function(t, y, parameters){
+  s <- parameters[1]
+  q <- parameters[2]
+  gamma <- parameters[3]
+  m <- parameters[4]
+  
+  f <- function(G) G^2
+  
+  G <- y[1]
+  I <- y[2]
+  B<- y[3]
+  
+  dG <- m-s*I*G
+  dI <- q*B*f(G) - gamma*I
+  dB <- 0.01*B*(G-5)
+  
+  list(c(dG, dI, dB))
+}
+```
+
+```{r}
+BIG2 <- function(t, y, parameters){
+  if(t < 100) s <- 1 else s <- 0.1
+  q <- parameters[2]
+  gamma <- parameters[3]
+  m <- parameters[4]
+  
+  f <- function(G) G^2
+
+  G <- y[1]
+  I <- y[2]
+  B<- y[3]
+  
+  dG <- m-s*I*G
+  dI <- q*B*f(G) - gamma*I
+  dB <- 0.01*B*(G-5)
+  
+  list(c(dG, dI, dB))
+}
+```
+
+```{r}
+BIG3 <- function(t, y, parameters){
+  if(abs(t - 90) < 0.5 || abs(t - 100) < 0.5 || abs(t - 300) < 0.5)m <-2 else m<- 1
+  if(t < 100) s <- 1 else s <- 0.1
+  q <- parameters[2]
+  gamma <- parameters[3]
+  
+  f <- function(G) G^2
+  
+  G <- y[1]
+  I <- y[2]
+  B<- y[3]
+  
+  dG <- m-s*I*G
+  dI <- q*B*f(G) - gamma*I
+  dB <- 0.01*B*(G-5)
+  
+  list(c(dG, dI, dB))
+}
+```
+
+## 1. Wykreśl zależność G(t), I(t), B(t)
+
+```{r}
+parameters_big <- c(s=1, q=1, gamma = 1, m = 1)
+inits_big <- c(G=5, I=1, B=1)
+times<- seq(0, 400,by= 0.1)
+
+big1 <- as.data.frame(ode(y= inits_big, times = times, func = BIG1, parms = parameters_big))
+big2 <- as.data.frame(ode(y= inits_big, times = times, func = BIG2, parms = parameters_big))
+big3 <- as.data.frame(ode(y= inits_big, times = times, func = BIG3, parms = parameters_big))
+```
+
+```{r}
+plot(big1$time, big1$G,
+     type = "l", col = "blue", 
+     ylim = c(0, max(big1$G, big1$I, big1$B)), 
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Model βIG") 
+lines(big1$time, big1$I, col = "red") 
+lines(big1$time, big1$B, col = "orange")
+legend("topright", 
+       legend = c("G", "I", "B"), 
+       col = c("blue", "red", "orange"), lty = 1)
+```
+
+## 2.  Symulacja dla dwóch s
+
+```{r}
+plot(big2$time, big2$G,
+     type = "l", col = "blue", 
+     ylim = c(0, max(big2$G, big2$I, big2$B)), 
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Model βIG zmiana s") 
+lines(big2$time, big2$I, col = "red") 
+lines(big2$time, big2$B, col = "orange")
+legend("topright", 
+       legend = c("G", "I", "B"), 
+       col = c("blue", "red", "orange"), lty = 1)
+```
+
+### Wyznaczenie stanu stacjonarnego
+
+$$
+Warunek\ 1:\\
+B(G-5)=0\\
+G = 5, (B \neq 0)\\
+Warunek 2:\\
+1 - sIG = 0\\
+I = \frac{1}{sG}\\
+1)s = 1\\
+I = 0.2 \\
+2) s= 0.1\\
+I = 2\\
+Warunek\ 3:\\
+BG^2 - I = 0\\
+B = \frac{I}{G^2}\\
+1) s = 1
+\\
+G= 5\\
+I= 0.2\\
+B= 0.008\\
+2) s = 0.1\\
+G = 5\\
+I= 2\\
+B= 0.08
+ 
+$$
+
+### Pokazanie zmiany B
+
+```{r}
+plot(big1$time, big1$B, type = "l", col = "blue",xlim = c(50,150), ylim = c(0, 0.2),
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Model βIG zmiana w B") 
+lines(big2$time, big2$B, col = "red", lty =2)
+legend("topright", 
+       legend = c("B, s = 1,", "B, s = 0.1"), 
+       col = c("blue", "red"), lty = c(1,2))
+```
+
+dla s = 1, B będzie dążyć do 0.008, a dla s = 0.1 B będzie dążyć do 0.08, widać, że zmniejszenie s zwiększa proporcjonalnie B
+
+## 3. Dodanie posiłku
+
+```{r}
+plot(big3$time, big3$G,
+     type = "l", col = "blue", 
+     ylim = c(0, max(big3$G, big3$I)), 
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Model βIG zmiana s i m") 
+lines(big3$time, big3$I, col = "red")
+abline(v = c(90, 100, 300), col = "orange", lty = 2)
+abline(v = 100, col = "gray", lty = 3)
+legend("topright", 
+       legend = c("G", "I"), 
+       col = c("blue", "red"), lty = 1)
+```
+
+Wyniki:
+
+-   t = 90 $\rightarrow$ wysoka wrażliwość na insuline, szybkie usuwanie nadmiaru glukozy, niska amblituda skoku
+
+-   t = 100 $\rightarrow$ niska wrażliwość na insuline, insulina działa szybko, na wykresie nie widać samego skoku przez podnoszenie się poziomu insuliny i glukozy w tym samym momencie
+
+-   t = 300 $\rightarrow$ Wzrost B, więc mimo niskiego s mamy więcej insuliny, glukoza szybko wraca do normy, niska amplituda
+
+Mimo spadku s system z czasem kompensuje to przez wzrost B, który zwiększa produkcje insuliny i przywracana jest kontrola glukozy
