@@ -88,7 +88,7 @@ parameters_lr <- c(k1 = 0.05, k2 = 0.1)
 
 inits_lr <- c(L = 40, R = 20, LR = 0) 
 
-times <- seq(0, 50, by = 0.1)  
+times <- seq(0, 100, by = 0.1)  
 
 lr <- as.data.frame(ode(y = inits_lr, times = times, func = LR, parms = parameters_lr ))
 ```
