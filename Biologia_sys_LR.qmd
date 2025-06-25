@@ -1,0 +1,112 @@
+---
+title: "Biologia_systemów_LR"
+author: "Zofia Sikorska"
+format: html
+editor: visual
+---
+
+```{r}
+library("deSolve")
+```
+
+# Model L +R \<=\> LR
+
+```{r}
+stoch_LR <- function(k1, k2, L0, R0, LR0, t_max) {   
+  L <- c(L0)   
+  R <- c(R0)   
+  LR <- c(LR0)   
+  
+  times <- c(0)   
+  t_now <- 0   
+  counter <- 2      
+  
+  while (t_now <= t_max) {     
+    v1 <- k1 * L[counter-1] * R[counter-1]
+    v2 <- k2 * LR[counter-1]             
+    h <- v1 + v2     
+    
+    r1 <- runif(1)     
+    r2 <- runif(1)     
+    
+    tau <- -log(r1) / h          
+    
+    if (r2 < v1 / h) {       
+      L[counter] <- L[counter-1] - 1       
+      R[counter] <- R[counter-1] - 1       
+      LR[counter] <- LR[counter-1] + 1     }      
+    else {       
+      L[counter] <- L[counter-1] + 1       
+      R[counter] <- R[counter-1] + 1       
+      LR[counter] <- LR[counter-1] - 1     }      
+    
+    times[counter] <- times[counter-1] + tau     
+    t_now <- t_now + tau     
+    counter <- counter + 1   }      
+  
+  list(times = times, L = L, R = R, LR = LR) }   
+
+res_stoch_LR <- stoch_LR(k1 = 0.05, k2 = 0.1, L0 = 40, R0 = 20, LR0 = 0, t_max = 100)
+```
+
+## 1. Wyrysowanie trajektorii na jednym wykresie
+
+```{r}
+
+plot(res_stoch_LR$times, res_stoch_LR$L,
+     type = "l", col = "blue",       
+     xlab = "Czas", ylab = "Liczba cząstek",      
+     main = "L + R <=> LR",      
+     ylim = c(0, max(c(res_stoch_LR$L, res_stoch_LR$R, res_stoch_LR$LR)))) 
+lines(res_stoch_LR$times, res_stoch_LR$R, col = "red") 
+lines(res_stoch_LR$times, res_stoch_LR$LR, col = "green") 
+legend("topright",         
+       legend = c("L", "R", "LR"),         
+       col = c("blue", "red", "green"),         lty = 1)
+```
+
+## 2. Wyrysowanie stoch i det na jednym wykresie
+
+```{r}
+LR <- function(t, y, parameters){   
+  k1 <- parameters[1]   
+  k2 <- parameters[2]      
+  
+  L <- y[1]   
+  R <- y[2]   
+  LR <- y[3]      
+  
+  dL <- -k1 * L * R + k2 * LR   
+  dR <- -k1 * L * R + k2 * LR   
+  dLR <- k1 * L * R - k2 * LR      
+  
+  list(c(dL, dR, dLR)) }
+```
+
+```{r}
+parameters_lr <- c(k1 = 0.05, k2 = 0.1) 
+
+inits_lr <- c(L = 40, R = 20, LR = 0) 
+
+times <- seq(0, 50, by = 0.1)  
+
+lr <- as.data.frame(ode(y = inits_lr, times = times, func = LR, parms = parameters_lr ))
+```
+
+```{r}
+plot(res_stoch_LR$times, res_stoch_LR$L,
+     type = "l", col = "blue",       
+     xlab = "Czas", ylab = "Liczba cząstek",      
+     main = "L + R <=> LR",      
+     ylim = c(0, max(c(res_stoch_LR$L, res_stoch_LR$R, res_stoch_LR$LR)))) 
+lines(res_stoch_LR$times, res_stoch_LR$R, col = "red") 
+lines(res_stoch_LR$times, res_stoch_LR$LR, col = "green") 
+lines(lr$time, lr$L, col = "orange", lty = 2, lwd = 2) 
+lines(lr$time, lr$R, col = "magenta", lty = 2, lwd = 2) 
+lines(lr$time, lr$LR, col = "skyblue", lty = 2, lwd = 2) 
+legend("topright",         
+       legend = c("L(stoch)", "R(stoch)", "LR(st0ch)", "L(det)", "R(det)", "LR(det)"),         
+       col = c("blue", "red", "green", "orange", "magenta", "skyblue"),         lty = c(1,1,1,2,2,2))
+```
+
+### 
