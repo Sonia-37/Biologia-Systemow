@@ -1,0 +1,126 @@
+---
+title: "Biologia systemów AB"
+author: "Zofia Sikorska"
+format: html
+editor: visual
+---
+
+# Trajektorie stochastyczne A i B
+
+```{r}
+library("deSolve")
+```
+
+Wrzuciłam te równania do funkcji, ponieważ przy łączonych wykresach nie łapało mi niektórych zmiennych
+
+```{r}
+stoch_ab <- function(k_ab, k_ba, A_0, B_0, t_max){
+  A  <- c(A_0)
+  B  <- c(B_0)
+  
+  times <- c(0)
+  t_now  <- 0
+  counter <- 2
+  
+  while(t_now<=t_max){
+  
+  prop1 <- k_ab*A[counter-1]
+  prop2 <- k_ba*B[counter-1]
+  
+  h <- prop1 + prop2
+  
+  r1 <- runif(1)
+  r2 <- runif(1)
+  
+  tau <- -log(r1)/h
+  
+  if(0<= r2 && r2 < prop1/h) {
+    A[counter] <- A[counter-1] - 1
+    B[counter] <- B[counter-1] + 1
+  
+    if(A[counter]<0) A[counter] <- 0
+  }
+  
+  if(prop1/h <= r2 && r2 <= 1) {
+    A[counter] <- A[counter-1] + 1
+    B[counter] <- B[counter-1] - 1
+  
+    if(B[counter]<0) B[counter] <- 0
+  }  
+  
+  
+  times[counter] <- times[counter-1] + tau
+  t_now  <- t_now + tau
+  counter <- counter + 1
+  }
+  list(times=times, A=A, B=B)
+}
+
+res_stoch_ab <- stoch_ab(k_ab = 0.1, k_ba = 0.2, A_0 = 50, B_0 = 0, t_max = 100)
+```
+
+## 1. Wyrysowanie trajektorii na jednym wykresie 
+
+```{r}
+plot(res_stoch_ab$times, res_stoch_ab$A, 
+     type = "l", 
+     col = "darkgreen", 
+     xlab = "Czas", 
+     ylab = "Liczba cząstek",
+     main = "Symulacja stochastyczna: A <=> B",
+     ylim = c(0, max(c(res_stoch_ab$A, res_stoch_ab$B)) + 5))
+lines(res_stoch_ab$times, res_stoch_ab$B, col = "orange")
+legend("topright", 
+       legend = c("A", "B"), 
+       col = c("darkgreen", "orange"), 
+       lty = 1)
+```
+
+## 2. Wyrysowanie stoch i det na jednym wykresie
+
+```{r}
+AB <- function(t, y, parameters){
+  k_ab_1 <- parameters[1]
+  k_ba_1 <- parameters[2]
+  
+  A_1 <- y[1]
+  B_1 <- y[2]
+  
+  dA <- -k_ab_1*A_1 + k_ba_1*B_1
+  dB <- k_ab_1*A_1 - k_ba_1*B_1
+  
+  list(c(dA, dB))
+}
+```
+
+```{r}
+parameters_ab <- c(k_ab_1 = 0.1, k_ba_1 = 0.2)
+inits <- c(A_1 = 50, B_1 = 0)
+times <- seq(0, 50, by = 0.1)
+
+ab <- as.data.frame(ode(
+  y = inits,
+  times = times,
+  func = AB,
+  parms = parameters_ab
+))
+```
+
+```{r}
+plot(res_stoch_ab$times, res_stoch_ab$A, 
+     type = "l", 
+     col = "darkgreen", 
+     xlab = "Czas", 
+     ylab = "Liczba cząstek",
+     main = "Porównanie stochastyczne-deterministyczne",
+     ylim = c(0, max(c(res_stoch_ab$A, res_stoch_ab$B, ab$A_1, ab$B_1))),
+     lwd = 2)
+lines(res_stoch_ab$times, res_stoch_ab$B, col = "orange", lwd = 2)
+lines(ab$time, ab$A, col = "blue", lty = 2, lwd = 2)
+lines(ab$time, ab$B, col = "red", lty = 2, lwd = 2)
+legend("topright", 
+       legend = c("A (stoch)", "B (stoch)", "A (det)", "B (det)"),
+       col = c("darkgreen", "orange", "blue", "red"), 
+       lty = c(1, 1, 2, 2),
+       lwd = 2)
+```
