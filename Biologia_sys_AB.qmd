@@ -96,7 +96,7 @@ AB <- function(t, y, parameters){
 ```{r}
 parameters_ab <- c(k_ab_1 = 0.1, k_ba_1 = 0.2)
 inits <- c(A_1 = 50, B_1 = 0)
-times <- seq(0, 50, by = 0.1)
+times <- seq(0, 100, by = 0.1)
 
 ab <- as.data.frame(ode(
   y = inits,
