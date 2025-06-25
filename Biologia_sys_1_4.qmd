@@ -1,0 +1,277 @@
+---
+title: "Biologia Systemów 1 4"
+author: "Zofia Sikorska"
+format: html
+editor: visual
+---
+
+```{r}
+library("deSolve")
+library("phaseR")
+```
+
+# Zadanie 4
+
+## a. Zrozumienie zadań i związku ze schematem obwodu
+
+-   Stan wysoki (on): wysokie stężenie cI $\rightarrow$ silna aktywacja wlasnej produkcji
+
+$$ \left(\frac{K_{\text{dis}}}{[p_{cI}]}\right)^n \gg 1\\ $$
+
+-   Stan niski (off): Niskie cI $\rightarrow$ słaba aktywacja
+
+$$ \left(\frac{K_{\text{dis}}}{[p_{cI}]}\right)^n \ll 1 $$
+
+-   Przełączanie: zewnętrzny sygnał
+
+-   Bazowa ekspresja pormotora nawet bez aktywatora $l_{PRM}$
+
+-   Białko cI $\rightarrow$ aktywacja produkcji własnego mRNA $\rightarrow$ więcej białka cI
+
+-   Więcej białka $\rightarrow$ silniejsza aktywacja $\rightarrow$ jeszcze więcej białka
+
+-   n=1: Płynna odpowiedź, 1 stabilny punkt równowagi
+
+-   n=2: Ostry próg aktywacji, bistabilność
+
+-   Niskie K_M: stabilizuje stan OFF
+
+-   Wysokie K_M: ułatwia stan ON
+
+## b. Implementacja równań
+
+```{r}
+mRNA_protein<- function(t, y, parameters){    
+  n <- parameters[1]   
+  K_dis <- parameters[2]   
+  l_prm <- parameters[3]   
+  k_cat <- parameters[4]   
+  K_M <- parameters[5]   
+  r_m <-parameters[6]   
+  gamma_m <- parameters[7]   
+  r_p <- parameters[8]   
+  gamma_p <- parameters[9]   
+  p_L <- parameters[10]    
+  
+  m <- y[1]   
+  p <- y[2]    
+  
+  dm <- r_m*((1/(1+(K_dis/p)^n))+l_prm)-gamma_m*m   
+  dp <- r_p*m-gamma_p*p - k_cat*p_L*(1/(1+(K_M/p)))    
+  
+  dy <- c(dm, dp)   
+  list(dy) 
+}
+```
+
+```{r}
+parameters_mp <- c(n = 1,K_dis = 2.5e-8, l_prm = 0.1,k_cat = 0.071,K_M = 3.7e-9,r_m = 1.35e-9,gamma_m = 2.38e-3, r_p = 5e-5, gamma_p = 2e-4, p_L = 1e-10)  
+
+inits_mp <- c(m = 0, p = 1e-9) 
+
+times_1 <- seq(0, 1e5, by = 10)   
+
+m_p <- as.data.frame(ode(y = inits_mp, times = times_1, func = mRNA_protein, parms = parameters_mp))
+```
+
+```{r}
+plot(m_p$time, m_p$m, 
+     type = "l", col = "blue", 
+     ylim = c(0, max(m_p$m, m_p$p)),      
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Dynamika mRNA i białka n = 1") 
+lines(m_p$time, m_p$p, col = "red") 
+legend("topright", 
+       legend = c("m_cI", "p_cI"), 
+       col = c("blue", "red"), lty = 1) 
+```
+
+## c. Portret fazowy
+
+```{r}
+m_lim <- c(0, 5.021e-07)  
+p_lim <- c(1e-12, 9.142e-08)
+
+initial_points <- list(
+  c(m = 1e-8, p = 1e-10),
+  c(m = 1e-7, p = 1e-9),
+  c(m = 2e-7, p = 5e-9),
+  c(m = 3e-7, p = 2e-8)
+)
+
+times_traj <- seq(0, 1e5, by = 100)
+
+
+flowField(
+  deriv = mRNA_protein,
+  xlim = m_lim,
+  ylim = p_lim,
+  parameters = parameters_mp,
+  points = 20,
+  add = FALSE,
+  state.names = c("m", "p")
+)
+
+nullclines(
+  deriv = mRNA_protein,
+  xlim = m_lim,
+  ylim = p_lim,
+  parameters = parameters_mp,
+  col = c("red", "blue"),
+  add = TRUE,
+  state.names = c("m", "p")
+)
+
+
+for (init in initial_points) {
+  traj <- ode(
+    y = init,
+    times = times_traj,
+    func = mRNA_protein,
+    parms = parameters_mp
+  )
+  lines(traj[, "m"], traj[, "p"], col = "darkgreen", lwd = 1.5)
+  points(init["m"], init["p"], pch = 16, col = "black")  
+}
+```
+
+```{r}
+p_seq <- 10^seq(-10, -7, length.out = 1000)
+m1 <- with(as.list(parameters_mp), {
+   (r_m / gamma_m) * (1 / (1 + (K_dis/p_seq)^n) + l_prm)
+})
+
+K_M = 3.7e-9
+term <- p_seq / (p_seq + K_M)  # Uproszczenie: 1/(1 + K_M/p) = p/(p + K_M)
+m2 <- with(as.list(parameters_mp), {(gamma_p * p_seq + k_cat * p_L * term) / r_p})
+```
+
+```{r}
+plot(m_p$m, m_p$p, 
+     type = "l", col = "blue", 
+     ylab = "p", xlab = "m", 
+     main = "Portret fazowy") 
+lines(m1, p_seq, col = "red", lwd = 2, lty=2)
+lines(m2, p_seq, col = "green", lwd = 2, lty =2)
+```
+
+Mamy tutaj tylko jeden punkt równowagi, widać to w szególności gdy popatrzymy na wykres z phaseR i trajektorie, oznacza to, że niezależnie od warunków początkowych układ zawsze dąży do tego samego stanu końcowego
+
+Patrząc też na wykres dynamiki białka, możemy zauważyć, że stężenie zarówno białka jak i mRNA wzrasta łagodnie.
+
+## d. n=2
+
+```{r}
+parameters_mp2 <- c(n = 2,K_dis = 2.5e-8, l_prm = 0.1,k_cat = 0.071,K_M = 3.7e-9,r_m = 1.35e-9,gamma_m = 2.38e-3, r_p = 5e-5, gamma_p = 2e-4, p_L = 1e-10)
+```
+
+```{r}
+m_p2 <- as.data.frame(ode(
+  y = inits_mp,
+  times = times_1,
+  func = mRNA_protein,
+  parms = parameters_mp2
+))
+```
+
+```{r}
+plot(m_p2$time, m_p2$m, 
+     type = "l", col = "blue", 
+     ylim = c(0, max(m_p2$m, m_p2$p)),      
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Dynamika mRNA i białka n = 2") 
+lines(m_p2$time, m_p2$p, col = "red") 
+legend("topright", legend = c("m_cI", "p_cI"), 
+       col = c("blue", "red"), lty = 1)
+```
+
+```{r}
+m_lim_2 <- c(0, 5e-7)     
+p_lim_2 <- c(0, 1e-7)    
+
+
+initial_points_2 <- list(
+  c(m = 0, p = 1e-10),
+  c(m = 0, p = 1e-08),
+  c(m = 0, p = 8e-08)
+)
+
+times_traj <- seq(0, 1e5, by = 100)
+
+
+flowField(
+  deriv = mRNA_protein,
+  xlim = m_lim_2,
+  ylim = p_lim_2,
+  parameters = parameters_mp2,
+  points = 20,
+  add = FALSE,
+  state.names = c("m", "p")
+)
+
+nullclines(
+  deriv = mRNA_protein,
+  xlim = m_lim_2,
+  ylim = p_lim_2,
+  parameters = parameters_mp2,
+  col = c("red", "blue"),
+  add = TRUE,
+  state.names = c("m", "p")
+)
+
+
+for (init in initial_points_2) {
+  traj <- ode(
+    y = init,
+    times = times_traj,
+    func = mRNA_protein,
+    parms = parameters_mp2
+  )
+  lines(traj[, "m"], traj[, "p"], col = "darkgreen", lwd = 1.5)
+  points(init["m"], init["p"], pch = 16, col = "black")  
+}
+
+```
+
+## e. Interpretacja:
+
+n=1 $\rightarrow$ łagodna odpowiedź, jeden punkt stabilny, niezależnie od punktów początkowych układ zawsze dąży do rego samego stanu końcowego, np. zawsze niska/wysoka ekspresja białka, brak opcji "przełącznika"
+
+n=2 $\rightarrow$ bardziej nieliniowa aktywacja, dwa stabilne punkty równowagi + 1 niestabilny między nimi (widać na wykresie jak 2 pierwsze trajektorie zmieżają do pierwszego punktu równowagi, a trzecie do drugiego), układ stabilizuje się w dwóch różnych stanach końcowych, małe p $\rightarrow$ niska ekspresja, duże p $\rightarrow$ wysoka ekspresja, system może posiadać "przełącznik" i komórka może być w stanie OFF i ON
+
+## f. Wpływ K_M
+
+```{r}
+parameters_mp_k1 <- c(n = 2,K_dis = 2.5e-8, l_prm = 0.1,k_cat = 0.071,K_M = 1e-9,r_m = 1.35e-9,gamma_m = 2.38e-3, r_p = 5e-5, gamma_p = 2e-4, p_L = 1e-10) 
+parameters_mp_k2 <- c(n = 2,K_dis = 2.5e-8, l_prm = 0.1,k_cat = 0.071,K_M = 1e-8,r_m = 1.35e-9,gamma_m = 2.38e-3, r_p = 5e-5, gamma_p = 2e-4, p_L = 1e-10) 
+parameters_mp_k3 <- c(n = 2,K_dis = 2.5e-8, l_prm = 0.1,k_cat = 0.071,K_M = 1e-7,r_m = 1.35e-9,gamma_m = 2.38e-3, r_p = 5e-5, gamma_p = 2e-4, p_L = 1e-10)  
+
+m_p_k1 <- as.data.frame(ode(y = inits_mp, times = times_1, func = mRNA_protein, parms = parameters_mp_k1)) 
+
+m_p_k2 <- as.data.frame(ode(y = inits_mp, times = times_1, func = mRNA_protein, parms = parameters_mp_k2)) 
+
+m_p_k3 <- as.data.frame(ode(y = inits_mp, times = times_1, func = mRNA_protein, parms = parameters_mp_k3))
+```
+
+```{r}
+plot(m_p_k1$time, m_p_k1$m, 
+     type = "l", col = "blue",      
+     ylab = "Stężenie", xlab = "Czas", 
+     main = "Dynamika mRNA i białka",
+     ylim = c(0,max(m_p_k1$m,m_p_k2$m, m_p_k3$m, m_p_k1$p, m_p_k2$p, m_p_k3$p)))
+lines(m_p_k1$time, m_p_k1$p, col = "red", lty =2) 
+lines(m_p_k2$time, m_p_k2$m, col = "orange", lty = 1) 
+lines(m_p_k2$time, m_p_k2$p, col = "grey", lty=2) 
+lines(m_p_k3$time, m_p_k3$m, col = "magenta", lty = 1)
+lines(m_p_k3$time, m_p_k3$p, col = "green", lty = 2) 
+
+legend("topright", 
+       legend = c("m_cI, KM -9", "p_cI KM -9", "m_cI, KM -8", "p_cI KM -8", "m_cI, KM -7", "p_cI KM -7"),
+       col = c("blue", "red", "orange", "grey", "magenta", "green"), lty = c(1,2,1,2,1,2))
+```
+
+K_M to stała Michaelisa: im mniejsze tym szybciej enzym wchodzi w "tryb nasycenia"
+
+Małe K_M: szybsza degradacja przy niskim stężeniu, trudniej utrzymać wysoki poziom białka, trudniej uzyskać stan ON
+
+Duże K_M: degradacja mniej efektywna przy niskim stężeniu, łatwiej uzyskać przełącznik bistabilny, białko gromadzi się do wyższych poziomów, system przełącza się w stan ON
