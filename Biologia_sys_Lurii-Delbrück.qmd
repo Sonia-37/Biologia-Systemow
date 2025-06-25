@@ -1,0 +1,70 @@
+---
+title: "Biologia Systemów Lurii-Delbruck"
+author: "Zofia Sikorska"
+format: html
+editor: visual
+---
+
+## 
+
+```{r}
+library("deSolve")
+```
+
+```{r}
+luria_delbruck_stoch <- function(n0, alpha_g, g_max, C) {
+  
+  mutants_all <- C
+  i_resistance <- C
+
+  for (colony in 1:C) {
+    Nwild <- n0
+    Nmut  <- 0
+    g_now <- 0
+    first_mut <- g_max + 1
+    
+    while (g_now < g_max) {
+      Nwild <- 2 * Nwild
+      Nmut  <- 2 * Nmut
+
+      lambda <- Nwild * alpha_g
+      l <- rpois(1, lambda)
+      
+      if (l > 0 && first_mut == g_max + 1) {
+        first_mut <- g_now + 1
+      }
+      
+      Nwild <- Nwild - l
+      Nmut  <- Nmut + l
+      
+      g_now <- g_now + 1
+    }
+    
+    mutants_all[colony] <- Nmut
+    i_resistance[colony] <- first_mut
+  }
+  
+  list(mutants = mutants_all, first_mut_gen = i_resistance)
+}
+```
+
+```{r}
+res <- luria_delbruck_stoch(200, 2e-9, 21, 500)
+```
+
+```{r}
+hist(res$mutants, breaks=50, col="skyblue", main="Rozkład liczby mutantów", xlab="Liczba mutantów")
+```
+
+```{r}
+hist(res$first_mut_gen, breaks=20, col="tomato", main="Pokolenie pierwszej mutacji", xlab="Pokolenie")
+```
+
+```{r}
+mean_mutants <- mean(res$mutants)
+var_mutants  <- var(res$mutants)
+
+cat("Średnia mutantów:", mean_mutants, "\n")
+cat("Wariancja:", var_mutants, "\n")
+
+```
